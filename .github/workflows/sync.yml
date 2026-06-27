@@ -1,0 +1,118 @@
+name: Sync Formulas
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - repos.yml
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Sync formulas and update README
+        run: |
+          changed=false
+          success_indexes=""   # 记录同步成功的下标
+
+          # ── 同步 Formula 文件 ────────────────────────────────
+          count=$(yq '.formulas | length' repos.yml)
+
+          for i in $(seq 0 $((count - 1))); do
+            name=$(yq ".formulas[$i].name" repos.yml)
+            owner=$(yq ".formulas[$i].owner" repos.yml)
+            repo=$(yq ".formulas[$i].repo" repos.yml)
+            branch=$(yq ".formulas[$i].branch" repos.yml)
+            formula=$(yq ".formulas[$i].formula" repos.yml)
+
+            URL="https://raw.githubusercontent.com/${owner}/${repo}/${branch}/Formula/${formula}"
+
+            echo "Checking ${name} from ${URL}..."
+
+            # fetch 失败：跳过，不记入 success_indexes
+            if ! curl -sf "$URL" -o "/tmp/${formula}"; then
+              echo "⚠️  Failed to fetch ${formula}, skipping"
+              continue
+            fi
+
+            mkdir -p Formula
+
+            if ! diff -q "Formula/${formula}" "/tmp/${formula}" > /dev/null 2>&1; then
+              echo "🔄 ${formula} updated"
+              cp "/tmp/${formula}" "Formula/${formula}"
+              git add "Formula/${formula}"
+              changed=true
+            else
+              echo "✅ ${formula} up to date"
+            fi
+
+            # 只有成功才记录
+            success_indexes="${success_indexes} ${i}"
+          done
+
+          # ── 只用成功的条目生成 README 表格 ───────────────────
+          table="| Formula | Description | Install |\n"
+          table+="| --- | --- | --- |\n"
+
+          for i in $success_indexes; do
+            name=$(yq ".formulas[$i].name" repos.yml)
+            desc=$(yq ".formulas[$i].description" repos.yml)
+            owner=$(yq ".formulas[$i].owner" repos.yml)
+            repo=$(yq ".formulas[$i].repo" repos.yml)
+
+            table+="| [${name}](https://github.com/${owner}/${repo}) | ${desc} | \`brew install zgfh/tap/${name}\` |\n"
+          done
+
+          # ── 替换 README 中的自动生成区域 ────────────────────
+          new_readme=$(awk \
+            -v block="<!-- FORMULAS_START -->\n${table}<!-- FORMULAS_END -->" \
+            '
+              /<!-- FORMULAS_START -->/ { print block; in_block=1; next }
+              /<!-- FORMULAS_END -->/   { in_block=0; next }
+              !in_block                 { print }
+            ' README.md)
+
+          if [ "$(cat README.md)" != "$new_readme" ]; then
+            echo "🔄 README updated"
+            printf "%s\n" "$new_readme" > README.md
+            git add README.md
+            changed=true
+          else
+            echo "✅ README up to date"
+          fi
+
+          # ── 提交 ─────────────────────────────────────────────
+          if [ "$changed" = "true" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: sync formulas and update README"
+            git push
+          else
+            echo "Nothing to update"
+          fi
+
+          # ── 最终状态汇总 ──────────────────────────────────────
+          total=$count
+          success=$(echo $success_indexes | wc -w | tr -d ' ')
+          fail=$((total - success))
+
+          echo ""
+          echo "📦 Total: ${total}  ✅ Success: ${success}  ❌ Failed: ${fail}"
+
+          # 有失败时让 CI 标黄（exit 1 会标红中断，用 exit 0 只打印）
+          if [ "$fail" -gt 0 ]; then
+            echo "::warning::${fail} formula(s) failed to sync, check logs above"
+          fi

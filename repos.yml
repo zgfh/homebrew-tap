@@ -1,0 +1,14 @@
+formulas:
+  - name: gitops-vault
+    description: "GitOps secret desensitization tool"
+    owner: zgfh
+    repo: gitops-vault
+    branch: homebrew
+    formula: gitops-vault.rb
+
+  - name: kubectl-diff
+    description: "kubectl diff for Kubernetes"
+    owner: zgfh
+    repo: kubectl-diff
+    branch: homebrew
+    formula: kubectl-diff.rb

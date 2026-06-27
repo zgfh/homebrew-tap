@@ -1,17 +1,30 @@
 # Zgfh Tap
 
-## How do I install these formulae?
+A collection of Homebrew formulae for tools by [@zgfh](https://github.com/zgfh).
 
-`brew install zgfh/tap/<formula>`
+## Install
 
-Or `brew tap zgfh/tap` and then `brew install <formula>`.
+```bash
+brew tap zgfh/tap
+```
 
-Or, in a `brew bundle` `Brewfile`:
+Or install a formula directly:
+
+```bash
+brew install zgfh/tap/<formula>
+```
+
+Or via `Brewfile`:
 
 ```ruby
 tap "zgfh/tap"
 brew "<formula>"
 ```
+
+## Formulae
+
+<!-- FORMULAS_START -->
+<!-- FORMULAS_END -->
 
 ## Documentation
 
