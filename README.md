@@ -24,6 +24,8 @@ brew "<formula>"
 ## Formulae
 
 <!-- FORMULAS_START -->
+| Formula | Description | Install |
+| --- | --- | --- |
 <!-- FORMULAS_END -->
 
 ## Documentation
