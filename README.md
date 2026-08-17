@@ -26,6 +26,7 @@ brew "<formula>"
 <!-- FORMULAS_START -->
 | Formula | Description | Install |
 | --- | --- | --- |
+| [gitops-vault](https://github.com/zgfh/gitops-vault) | GitOps secret desensitization tool | `brew install zgfh/tap/gitops-vault` |
 <!-- FORMULAS_END -->
 
 ## Documentation
